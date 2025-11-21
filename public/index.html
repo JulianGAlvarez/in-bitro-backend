@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>in bitro — Crear Semilla</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        #loading {
+            display: none;
+            margin-top: 20px;
+            font-weight: bold;
+            color: green;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Crear Semilla Digital</h2>
+
+    <label>Tu nombre:</label><br>
+    <input id="username" type="text" placeholder="Escribí tu nombre" /><br><br>
+
+    <button onclick="crearSemilla()">Generar Semilla</button>
+
+    <p id="loading">CREANDO SEMILLA...</p>
+    <p id="done" style="display:none; color: blue;">¡Semilla enviada con éxito!</p>
+
+    <script>
+        async function crearSemilla() {
+
+            const nombre = document.getElementById("username").value;
+            if (!nombre) {
+                alert("Por favor ingresá tu nombre");
+                return;
+            }
+
+            document.getElementById("loading").style.display = "block";
+
+            // 1) Obtener datos del usuario desde el backend
+            const userInfo = await fetch("/userdata").then(r => r.json());
+
+            // 2) Construir semilla
+            const semilla = {
+                nombre: nombre,
+                ip: userInfo.ip,
+                ciudad: userInfo.city,
+                isp: userInfo.isp,
+                pais: userInfo.country,
+                timestamp: Date.now()
+            };
+
+            // 3) Enviar semilla al servidor
+            await fetch("/sendSeed", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(semilla)
+            });
+
+            // 4) Mostrar confirmación
+            document.getElementById("done").style.display = "block";
+            document.getElementById("loading").style.display = "none";
+        }
+    </script>
+
+</body>
+</html>
+
