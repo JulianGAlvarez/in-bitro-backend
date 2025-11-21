@@ -32,9 +32,27 @@ app.get("/userdata", async (req, res) => {
 
 // 2) Endpoint para recibir la semilla desde la web
 app.post("/sendSeed", (req, res) => {
-    lastSeed = req.body;
-    console.log("Nueva semilla recibida:", lastSeed);
-    res.json({ ok: true });
+    try {
+        let seed = req.body;
+
+        // Obtener IP del cliente que envía la semilla
+        const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+
+        // Obtener país usando geoip-lite
+        const geo = geoip.lookup(clientIP);
+
+        // Agregar ip y country a la semilla
+        seed.ip = clientIP;
+        seed.country = geo ? geo.country : "Desconocido";
+
+        lastSeed = seed;
+
+        console.log("Nueva semilla recibida:", lastSeed);
+        res.json({ ok: true });
+    } catch (err) {
+        console.error("Error procesando la semilla:", err);
+        res.status(500).json({ error: "Error procesando la semilla" });
+    }
 });
 
 // 3) Endpoint para Unity – obtener la última semilla
@@ -43,25 +61,12 @@ app.get("/getSeed", (req, res) => {
         return res.json({ available: false, seed: null });
     }
 
-    // Obtener IP del cliente que hace la petición
-    const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-
-    // Lookup de país usando geoip-lite
-    const geo = geoip.lookup(clientIP);
-
-    // Añadir ip y country a la semilla
-    const seedWithInfo = {
-        ...lastSeed,
-        ip: clientIP,
-        country: geo ? geo.country : "Desconocido"
-    };
-
     res.json({
         available: true,
-        seed: seedWithInfo
+        seed: lastSeed
     });
 
-    // Resetear lastSeed
+    // Resetear lastSeed para que no se envíe dos veces
     lastSeed = null;
 });
 
