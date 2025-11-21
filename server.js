@@ -1,8 +1,9 @@
-﻿const express = require("express");
+const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
+const geoip = require("geoip-lite"); // Para obtener país desde IP
 
-const app = express();     // <-- app se crea aquí, antes de usarla
+const app = express();
 
 app.use(cors());
 app.use(express.json());
@@ -16,7 +17,6 @@ let lastSeed = null;
 
 // 1) Endpoint – la web obtiene la IP y datos del usuario
 app.get("/userdata", async (req, res) => {
-
     try {
         const ipInfo = await axios.get("https://ipapi.co/json/");
         res.json({
@@ -33,16 +33,35 @@ app.get("/userdata", async (req, res) => {
 // 2) Endpoint para recibir la semilla desde la web
 app.post("/sendSeed", (req, res) => {
     lastSeed = req.body;
-    console.log("Nueva semilla:", lastSeed);
+    console.log("Nueva semilla recibida:", lastSeed);
     res.json({ ok: true });
 });
 
 // 3) Endpoint para Unity – obtener la última semilla
 app.get("/getSeed", (req, res) => {
+    if (!lastSeed) {
+        return res.json({ available: false, seed: null });
+    }
+
+    // Obtener IP del cliente que hace la petición
+    const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+
+    // Lookup de país usando geoip-lite
+    const geo = geoip.lookup(clientIP);
+
+    // Añadir ip y country a la semilla
+    const seedWithInfo = {
+        ...lastSeed,
+        ip: clientIP,
+        country: geo ? geo.country : "Desconocido"
+    };
+
     res.json({
-        available: lastSeed !== null,
-        seed: lastSeed
+        available: true,
+        seed: seedWithInfo
     });
+
+    // Resetear lastSeed
     lastSeed = null;
 });
 
